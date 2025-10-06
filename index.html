@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="shortcut icon" href="./images/favicon.ico" />
+    <title>Weather App with VueJS</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!-- Load config file with API keys (create from config.example.js) -->
+    <script src="./config.js"></script>
+    <div id="app">
+      <header class="container">{{ title }}</header>
+      <div class="container">
+        <div class="current">
+          <span v-if="placeString===''">{{ placeStringPlaceholder }}</span
+          ><span id="placeString" v-else>{{ placeString }}</span> {{ am }} {{
+          formatDate(timestamp) }} {{ um }} {{ formatTime(timestamp) }}
+          <p>{{ tempPrefix }} {{ temperature }} {{ tempSuffix }}</p>
+          <img v-if="imgUrl!==''" :src="imgUrl" />
+          <p>{{weatherStatus}}</p>
+        </div>
+        <div class="forecast">
+          <div class="tage">
+            {{tempfuer}} <br /><strong> {{formatTage(timestamp, 1)}} </strong>:
+            <span> {{temparray[1]}} {{tempSuffix}}</span> <br />
+            <br />
+            {{vorhersage}} <br /><img
+              v-if="imgUrl!==''"
+              :src="imgSrcArray[1]"
+            /><br />
+            <strong>{{descrArray[1]}}</strong>
+          </div>
+          <div class="tage">
+            {{tempfuer}} <br /><strong> {{formatTage(timestamp, 2)}}</strong>:
+            <span> {{temparray[2]}} {{tempSuffix}} </span> <br />
+            <br />
+            {{vorhersage}} <br /><img
+              v-if="imgUrl!==''"
+              :src="imgSrcArray[2]"
+            /><br />
+            <strong>{{descrArray[2]}}</strong>
+          </div>
+          <div class="tage">
+            {{tempfuer}} <br /><strong>{{formatTage(timestamp, 3)}}</strong>:
+            <span> {{temparray[3]}} {{tempSuffix}} </span> <br />
+            <br />
+            {{vorhersage}} <br /><img
+              v-if="imgUrl!==''"
+              :src="imgSrcArray[3]"
+            /><br />
+            <strong>{{descrArray[3]}}</strong>
+          </div>
+          <div class="tage">
+            {{tempfuer}} <br /><strong>{{formatTage(timestamp, 4)}}</strong>:
+            <span> {{temparray[4]}} {{tempSuffix}} </span> <br />
+            <br />
+            {{vorhersage}} <br /><img
+              v-if="imgUrl!==''"
+              :src="imgSrcArray[4]"
+            /><br />
+            <strong>{{descrArray[4]}}</strong>
+          </div>
+          <div class="tage">
+            {{tempfuer}} <br /><strong>{{formatTage(timestamp, 5)}}</strong>:
+            <span> {{temparray[5]}} {{tempSuffix}} </span> <br />
+            <br />
+            {{vorhersage}} <br /><img
+              v-if="imgUrl!==''"
+              :src="imgSrcArray[5]"
+            /><br />
+            <strong>{{descrArray[5]}}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
