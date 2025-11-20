@@ -1,0 +1,20 @@
+{
+  "name": "vue-weather-app",
+  "version": "1.0.0",
+  "description": "Weather App using Vue.js, OpenWeatherMap and Google Maps APIs",
+  "scripts": {
+    "generate-config": "node generate-config.js",
+    "setup": "bun run generate-config",
+    "build": "bun run generate-config",
+    "postinstall": "bun run generate-config"
+  },
+  "keywords": [
+    "weather",
+    "vue",
+    "api",
+    "openweathermap"
+  ],
+  "author": "",
+  "license": "ISC"
+}
+
