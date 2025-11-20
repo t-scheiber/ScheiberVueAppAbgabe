@@ -1,0 +1,27 @@
+[phases.setup]
+nixPkgs = ["nodejs_22", "bun"]
+
+[phases.install]
+# Install dependencies (if any) and generate config.js via postinstall script
+cmds = ["bun install"]
+
+[phases.build]
+# Generate config.js from environment variables
+# This reads from process.env which Nixpacks provides during build
+# Environment variables OPENWEATHER_API_KEY and GOOGLE_MAPS_API_KEY must be set
+cmds = ["bun run generate-config"]
+
+# For static sites, use staticAssets if supported by the platform
+[staticAssets]
+# Serve the root directory as static files
+publicDir = "."
+
+# If staticAssets is not supported, use a simple HTTP server
+[start]
+# Use a simple HTTP server to serve the static files
+# The PORT environment variable is automatically provided by the platform
+cmd = "bunx serve -s . -l ${PORT:-3000}"
+
+[variables]
+NODE_ENV = "production"
+

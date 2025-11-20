@@ -1,0 +1,62 @@
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+header {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.26);
+  margin: 3rem;
+  border-radius: 10px;
+  padding: 1rem;
+  background-color: #4fc08d;
+  color: white;
+  text-align: center;
+}
+
+#day {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.26);
+  margin: 3rem;
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
+}
+.current span {
+  text-transform: uppercase;
+  font-style: italic;
+}
+.current {
+  text-align: center;
+}
+.forecast {
+  display: flex;
+}
+.tage {
+  justify-content: space-around;
+  font-size: 12px;
+  text-align: center;
+  padding: 10px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.tage img {
+  width: 100%;
+  padding: 20px;
+  max-width: 130px;
+}
+div .tage:nth-child(even) {
+  background-color: #f3f3f3;
+}
+.tage span {
+  font-size: 11pt;
+  font-weight: bolder;
+}
+strong {
+  font-size: 11pt;
+}
