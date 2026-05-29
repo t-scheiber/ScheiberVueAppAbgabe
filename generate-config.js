@@ -12,6 +12,15 @@ const path = require('path');
 function loadEnvFile() {
   const envVars = {};
   
+  // CI environments (e.g. Renovate validation) can use placeholder keys.
+  if (process.env.CI === 'true') {
+    console.log('📦 Using placeholder API keys for CI');
+    return {
+      OPENWEATHER_API_KEY: 'ci-placeholder',
+      GOOGLE_MAPS_API_KEY: 'ci-placeholder'
+    };
+  }
+
   // First, check if environment variables are set in process.env (for deployment platforms)
   if (process.env.OPENWEATHER_API_KEY && process.env.GOOGLE_MAPS_API_KEY) {
     console.log('📦 Using environment variables from process.env');
