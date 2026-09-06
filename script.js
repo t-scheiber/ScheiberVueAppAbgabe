@@ -54,43 +54,60 @@ const app = createApp({
     };
   },
   methods: {
-    getTheLocation() {
-      // Check if API key is configured
+    async getTheLocation() {
+      const position = await new Promise((resolve) => {
+        if (!navigator.geolocation) {
+          resolve(null);
+          return;
+        }
+        let settled = false;
+        const finish = (value) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(value);
+        };
+        const timer = setTimeout(() => finish(null), 8000);
+        try {
+          navigator.geolocation.getCurrentPosition(
+            (value) => finish(value),
+            () => finish(null),
+            {timeout: 8000, maximumAge: 0, enableHighAccuracy: false}
+          );
+        } catch {
+          finish(null);
+        }
+      });
+      const latitude = position?.coords?.latitude;
+      const longitude = position?.coords?.longitude;
+      const valid = Number.isFinite(latitude) && Math.abs(latitude) <= 90 &&
+        Number.isFinite(longitude) && Math.abs(longitude) <= 180;
+      this.lat = valid ? latitude : 48.208174;
+      this.lon = valid ? longitude : 16.373819;
+
       if (typeof window.CONFIG === 'undefined' || !window.CONFIG.GOOGLE_MAPS_API_KEY) {
         console.error('ERROR: Google Maps API key not configured. Please copy config.example.js to config.js and add your API key.');
         return;
       }
-      
-      navigator.geolocation.getCurrentPosition((position) => {
-        this.lat = position.coords.latitude;
-        this.lon = position.coords.longitude;
-        console.log(this.lat, this.lon);
-        const geoAPIurl =
-          "https://maps.googleapis.com/maps/api/geocode/json?latlng=" +
-          this.lat +
-          "," +
-          this.lon +
-          "&key=" + window.CONFIG.GOOGLE_MAPS_API_KEY;
-        console.log(geoAPIurl);
-
-        fetch(geoAPIurl)
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-          })
-          .then((response) => {
-            this.datenPlacesAPI = response;
-            if (response.results && response.results.length > 0) {
-              this.placeString = response.results[0].formatted_address;
-            }
-            console.log(this.placeString);
-          })
-          .catch((error) => {
-            console.error('Geolocation API error:', error);
-          });
-      });
+      const geoAPIurl =
+        "https://maps.googleapis.com/maps/api/geocode/json?latlng=" +
+        this.lat + "," + this.lon + "&key=" + window.CONFIG.GOOGLE_MAPS_API_KEY;
+      // Reverse geocoding must not delay weather after location is resolved.
+      fetch(geoAPIurl)
+        .then((response) => {
+          if (!response.ok) throw new Error('Geocoding request failed');
+          return response.json();
+        })
+        .then((response) => {
+          if (!Array.isArray(response?.results)) throw new Error('Invalid geocoding response');
+          this.datenPlacesAPI = response;
+          if (typeof response.results[0]?.formatted_address === 'string') {
+            this.placeString = response.results[0].formatted_address;
+          }
+        })
+        .catch(() => {
+          console.error('Geolocation API request failed.');
+        });
     },
     getTheWeather() {
       // Check if API key is configured
@@ -106,8 +123,7 @@ const app = createApp({
         "&lon=" +
         this.lon +
         "&lang=de&units=metric&appid=" + window.CONFIG.OPENWEATHER_API_KEY;
-      console.log(weatherAPIurl);
-      fetch(weatherAPIurl)
+      const currentRequest = fetch(weatherAPIurl)
         .then((response) => {
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -115,6 +131,11 @@ const app = createApp({
           return response.json();
         })
         .then((data) => {
+          if (!Number.isFinite(data?.dt) || !Number.isFinite(data?.main?.temp) ||
+              typeof data?.weather?.[0]?.description !== 'string' ||
+              typeof data?.weather?.[0]?.icon !== 'string') {
+            throw new Error('Invalid weather response');
+          }
           this.datenWeatherAPI = data;
           this.timestamp = data.dt;
           this.temperature = Math.round(data.main.temp);
@@ -124,8 +145,8 @@ const app = createApp({
             data.weather[0].icon +
             "@2x.png";
         })
-        .catch((error) => {
-          console.error('Weather API error:', error);
+        .catch(() => {
+          console.error('Weather API request failed.');
         });
       
       // Get 5-day forecast
@@ -136,7 +157,7 @@ const app = createApp({
         this.lon +
         "&lang=de&units=metric&appid=" + window.CONFIG.OPENWEATHER_API_KEY;
       
-      fetch(forecastAPIurl)
+      const forecastRequest = fetch(forecastAPIurl)
         .then((response) => {
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -144,10 +165,17 @@ const app = createApp({
           return response.json();
         })
         .then((data) => {
+          if (!Array.isArray(data?.list)) throw new Error('Invalid forecast response');
           // Get one forecast per day (every 8th item = 24 hours)
           for (let i = 0; i < 8; i++) {
             const forecastIndex = i * 8;
             if (data.list[forecastIndex]) {
+              const item = data.list[forecastIndex];
+              if (!Number.isFinite(item?.main?.temp) ||
+                  typeof item?.weather?.[0]?.description !== 'string' ||
+                  typeof item?.weather?.[0]?.icon !== 'string') {
+                throw new Error('Invalid forecast item');
+              }
               this.temparray[i + 1] = Math.round(data.list[forecastIndex].main.temp);
               this.descrArray[i + 1] = data.list[forecastIndex].weather[0].description;
               this.imgSrcArray[i + 1] =
@@ -157,14 +185,15 @@ const app = createApp({
             }
           }
         })
-        .catch((error) => {
-          console.error('Forecast API error:', error);
+        .catch(() => {
+          console.error('Forecast API request failed.');
         });
+      return Promise.all([currentRequest, forecastRequest]);
     },
     formatDate(timestamp) {
-      timestampDate = new Date(timestamp * 1000);
-      tag = timestampDate.getDay();
-      datum =
+      const timestampDate = new Date(timestamp * 1000);
+      const tag = timestampDate.getDay();
+      const datum =
         timestampDate.getDate() +
         " " +
         this.monat[timestampDate.getMonth()] +
@@ -173,22 +202,22 @@ const app = createApp({
       return this.wochentage[tag] + ", " + datum;
     },
     formatTage(timestamp, num) {
-      timestampDate = new Date(timestamp * 1000);
-      tag = timestampDate.getDay();
+      const timestampDate = new Date(timestamp * 1000);
+      const tag = timestampDate.getDay();
       return this.wochentage[(tag + num) % 7];
     },
     formatTime(timestamp) {
-      timestampDate = new Date(timestamp * 1000);
-      stunden = timestampDate.getHours();
-      minuten = timestampDate.getMinutes();
+      const timestampDate = new Date(timestamp * 1000);
+      let stunden = timestampDate.getHours();
+      let minuten = timestampDate.getMinutes();
       if (stunden < 10) stunden = "0" + stunden;
       if (minuten < 10) minuten = "0" + minuten;
       return stunden + ":" + minuten;
     },
   },
-  beforeMount() {
-    this.getTheLocation();
-    this.getTheWeather();
+  async beforeMount() {
+    await this.getTheLocation();
+    await this.getTheWeather();
   },
 });
 
