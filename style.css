@@ -60,3 +60,14 @@ div .tage:nth-child(even) {
 strong {
   font-size: 11pt;
 }
+
+@media (max-width: 575px) {
+  .forecast {
+    flex-wrap: wrap;
+  }
+
+  .tage {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+}
