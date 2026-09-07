@@ -19,3 +19,6 @@ Thumbs.db
 .cursor/
 .chatgpt/
 .gemini/
+
+# Generated deployment artifact
+dist/
