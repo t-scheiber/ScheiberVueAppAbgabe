@@ -1,5 +1,29 @@
 const { createApp } = Vue;
 
+// Loads the Maps JavaScript API once and resolves with its geocoder.
+// The page uses this library, not the Geocoding web service, because the
+// web service rejects API keys that are restricted to websites.
+let geocoderPromise;
+function loadGeocoder(key) {
+  if (!geocoderPromise) {
+    geocoderPromise = new Promise((resolve, reject) => {
+      const callbackName = 'weatherAppMapsLoaded';
+      window[callbackName] = () => {
+        delete window[callbackName];
+        window.google.maps.importLibrary('geocoding')
+          .then(({Geocoder}) => resolve(new Geocoder()), reject);
+      };
+      const script = document.createElement('script');
+      script.async = true;
+      script.onerror = () => reject(new Error('Maps JavaScript API failed to load'));
+      script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) +
+        '&v=weekly&loading=async&callback=' + callbackName;
+      document.head.appendChild(script);
+    });
+  }
+  return geocoderPromise;
+}
+
 const app = createApp({
   data() {
     return {
@@ -89,15 +113,9 @@ const app = createApp({
         console.error('ERROR: Google Maps API key not configured. Please copy config.example.js to config.js and add your API key.');
         return;
       }
-      const geoAPIurl =
-        "https://maps.googleapis.com/maps/api/geocode/json?latlng=" +
-        this.lat + "," + this.lon + "&key=" + window.CONFIG.GOOGLE_MAPS_API_KEY;
       // Reverse geocoding must not delay weather after location is resolved.
-      fetch(geoAPIurl)
-        .then((response) => {
-          if (!response.ok) throw new Error('Geocoding request failed');
-          return response.json();
-        })
+      loadGeocoder(window.CONFIG.GOOGLE_MAPS_API_KEY)
+        .then((geocoder) => geocoder.geocode({location: {lat: this.lat, lng: this.lon}}))
         .then((response) => {
           if (!Array.isArray(response?.results)) throw new Error('Invalid geocoding response');
           this.datenPlacesAPI = response;
