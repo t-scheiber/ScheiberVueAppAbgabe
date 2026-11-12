@@ -22,7 +22,7 @@
     "node": ">=22.23.2"
   },
   "dependencies": {
-    "bootstrap": "5.3.8",
-    "vue": "3.5.42"
+    "bootstrap": "5.3.9",
+    "vue": "3.5.45"
   }
 }
