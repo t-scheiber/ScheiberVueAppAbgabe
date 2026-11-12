@@ -1,251 +1,71 @@
-# Weather App - Vue.js 🌤️
+# Weather App
 
-**🌐 Live Site:** [weatherapp.thomasscheiber.com](https://weatherapp.thomasscheiber.com/)
+A course submission: a web development assignment that builds a weather app with Vue 3 and Bootstrap 5.
+The app shows the current weather and a five-card forecast for the browser's location, or for Vienna when location access fails or times out.
 
-A weather application built with Vue.js that displays current weather conditions and a 5-day forecast. Created as an assignment demonstrating Vue.js fundamentals.
+The app has no bundler. `index.html` loads Vue and Bootstrap from `assets/`, a folder that only exists in `dist/`. `npm run build` copies those files from `node_modules` into `dist/`.
 
-## 🌤️ Features
+## What the app does
 
-- **Current Weather Display**: Real-time weather for any location
-- **5-Day Forecast**: Extended weather predictions
-- **Weather Icons**: Visual representation of weather conditions
-- **Temperature Display**: Current temperature with weather status
-- **Date & Time**: Formatted display of current date and time
-- **Responsive Design**: Works on all devices
+- Asks the browser for its position with an 8-second timeout. Without a position it uses Vienna (48.208174, 16.373819).
+- Reverse-geocodes the position with the Google Geocoding API and shows the first `formatted_address`.
+- Requests current weather and a 3-hour forecast from OpenWeatherMap, in metric units and German.
+- Shows the temperature, the weather icon and description, and the date and time from the weather timestamp.
+- Shows five forecast cards from forecast entries 0, 8, 16, 24 and 32, which are 24 hours apart.
 
-## 🛠️ Technologies Used
+## Stack
 
-- **Vue.js 3** - Progressive JavaScript framework (CDN version)
-- **HTML5** - Structure and markup
-- **CSS3** - Styling with Bootstrap integration
-- **Bootstrap 5** - UI components and responsive grid
-- **OpenWeatherMap API** - Weather data source
+- Vue 3.5.45 (`vue.global.prod.js`) and Bootstrap 5.3.9, installed from npm and pinned exactly in `package.json`.
+- Plain HTML, CSS and JavaScript in `index.html`, `style.css` and `script.js`.
+- Node.js scripts for config generation, the build, validation and tests. The `engines` field requires Node.js 22.23.2 or later.
 
-## 🎯 Key Features
+## Setup
 
-### Current Weather
-- Location display
-- Current temperature
-- Weather status description
-- Weather condition icon
-- Formatted date and time
+1. Install the locked dependencies: `npm ci`
+2. Create `.env` in the repository root with both keys. Get them from https://openweathermap.org/api and https://console.cloud.google.com/ (enable the Geocoding API):
 
-### 5-Day Forecast
-- Daily temperature predictions
-- Weather icons for each day
-- Weather descriptions
-- Clean forecast card layout
-
-## 📦 Setup & Installation
-
-### Quick Start (Using Environment Variables - Recommended)
-
-1. Clone the repository
-2. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-3. Edit `.env` and add your API keys:
    ```env
-   OPENWEATHER_API_KEY=your_actual_openweathermap_api_key
-   GOOGLE_MAPS_API_KEY=your_actual_google_maps_api_key
-   ```
-4. Generate `config.js` from your `.env` file:
-   ```bash
-   bun run generate-config
-   ```
-   Or with npm:
-   ```bash
-   npm run generate-config
-   ```
-5. Open `index.html` in your browser or serve with a local server:
-   ```bash
-   npx serve .
+   OPENWEATHER_API_KEY=your_openweathermap_key
+   GOOGLE_MAPS_API_KEY=your_google_maps_key
    ```
 
-### Alternative Setup (Manual Config)
+3. Build: `npm run build`. This generates `config.js` and writes `dist/`.
+4. Serve `dist/` with any static server, for example `npx serve dist`.
 
-If you prefer to set up manually:
-1. Copy `config.example.js` to `config.js`
-2. Edit `config.js` and add your API keys directly
-3. Open `index.html` in your browser
+## How the API keys are supplied
 
-### Getting API Keys
+`generate-config.js` reads the keys in this order:
 
-- **OpenWeatherMap API Key**: Get your free key from [OpenWeatherMap API](https://openweathermap.org/api)
-- **Google Maps API Key**: Get your key from [Google Cloud Console](https://console.cloud.google.com/)
-  - Enable "Geocoding API" for reverse geocoding functionality
+1. If `CI` is `true`, both values are the placeholder `ci-placeholder`.
+2. If `OPENWEATHER_API_KEY` and `GOOGLE_MAPS_API_KEY` are both set in the environment, it uses those.
+3. Otherwise it reads `.env`. If `.env` is missing, it exits with code 1.
 
-## 🏗️ Project Structure
+Values that contain `your_` or `here` are rejected. `npm run build` runs this step, so set the keys before you build.
+`config.example.js` shows the shape of `CONFIG`, but no script reads it. Running `generate-config` overwrites a hand-written `config.js`.
 
-```
-ScheiberVueAppAbgabe/
-├── index.html          # Main HTML with Vue app
-├── script.js           # Vue.js application logic
-├── style.css           # Custom styling
-├── config.js           # API keys (generated from .env - DO NOT COMMIT)
-├── config.example.js   # Example config file
-├── .env                # Environment variables (DO NOT COMMIT)
-├── .env.example        # Example environment variables
-├── generate-config.js  # Script to generate config.js from .env
-├── package.json        # Node.js dependencies and scripts
-├── nixpacks.toml       # Nixpacks deployment configuration
-├── images/             # Weather icons and assets
-└── README.md           # Documentation
-```
+The keys reach the browser. The page loads `config.js`, and the requests carry the keys in the URL (`appid=` for OpenWeatherMap, `key=` for Google).
+Anyone who opens the page can read them. Restrict both keys in the provider consoles, and do not publish a `dist/` built with real keys to a public host.
 
-## 🔐 Environment Variables
+## Scripts
 
-This project uses environment variables for secure API key management. The setup process:
+| Command | What it does |
+| --- | --- |
+| `npm run generate-config` | Writes `config.js` from the environment or `.env`. |
+| `npm run build` | Generates `config.js`, checks that installed Vue and Bootstrap match `package.json`, and copies the allowlisted files to `dist/`. |
+| `npm run validate` | Checks JavaScript syntax, the lockfile pins, that `index.html` has no external script or stylesheet, and the five forecast slots. |
+| `npm test` | Runs the Node test runner on `tests/*.test.mjs`. |
 
-1. **Create `.env` file**: Copy `.env.example` to `.env`
-2. **Add your API keys**: Edit `.env` with your actual keys
-3. **Generate config**: Run `bun run generate-config` to create `config.js`
-4. **Deploy**: The generated `config.js` is used by the app
+The config tests compare POSIX-style paths, so four of the twenty tests fail on Windows.
 
-**Important**: 
-- Never commit `.env` or `config.js` to version control
-- Both files are in `.gitignore` for security
-- Use `.env.example` as a template for required variables
+## Deployment
 
-### Deployment
+- GitHub Pages: `.github/workflows/pages.yml` calls a shared publishing workflow on pushes to `main`, when the repository variable `STATIC_PAGES_ENABLED` is `true`.
+  The published page is at https://t-scheiber.github.io/ScheiberVueAppAbgabe/
+  The published `config.js` has empty keys, so the page loads without weather data and shows its default values.
+- Nixpacks: `nixpacks.toml` runs `bun install` and `bun run generate-config`, then serves the repository root.
+  The root has no `assets/` folder, so Vue and Bootstrap do not load from that setup. Serve `dist/` instead.
 
-#### Nixpacks (Railway, Render, etc.)
+## Tests
 
-The project includes a `nixpacks.toml` configuration file for easy deployment:
-
-1. **Set environment variables** in your platform's dashboard:
-   - `OPENWEATHER_API_KEY`
-   - `GOOGLE_MAPS_API_KEY`
-
-2. **Deploy**: The build process will automatically:
-   - Install Node.js and Bun
-   - Run `bun install` (which triggers `postinstall` to generate config.js)
-   - Generate `config.js` from environment variables
-   - Serve the static files
-
-The `generate-config.js` script automatically reads from `process.env` during the build phase, so your API keys are securely injected into `config.js` at build time.
-
-#### Other Platforms (Vercel, Netlify, etc.)
-
-1. **Set environment variables** in your hosting platform's dashboard:
-   - `OPENWEATHER_API_KEY`
-   - `GOOGLE_MAPS_API_KEY`
-
-2. **Add a build step** that generates `config.js`:
-   ```bash
-   bun run generate-config
-   ```
-   Or with npm:
-   ```bash
-   npm run generate-config
-   ```
-
-3. **For platforms with build hooks**, the `package.json` already includes:
-   ```json
-   {
-     "scripts": {
-       "build": "bun run generate-config"
-     }
-   }
-   ```
-
-The `generate-config.js` script reads from `process.env` (environment variables) when available, making it compatible with most deployment platforms.
-
-## 💡 Vue.js Concepts Demonstrated
-
-### Vue Fundamentals
-- **Vue Instance**: Main app initialization
-- **Data Properties**: Reactive data management
-- **Computed Properties**: For formatted dates and times
-- **Methods**: Weather data fetching and formatting
-- **Template Syntax**: Vue directives (v-if, v-else, v-for)
-- **Event Handling**: User interactions
-
-### Vue Directives Used
-- `v-if / v-else`: Conditional rendering
-- `{{ }}`: Text interpolation
-- `:src`: Dynamic attribute binding
-- `v-bind`: Dynamic property binding
-
-## 🌐 API Integration
-
-Integrates with **OpenWeatherMap API** to fetch:
-- Current weather data
-- 5-day/3-hour forecast
-- Weather condition icons
-- Temperature information
-
-## 📱 Responsive Design
-
-Built with Bootstrap 5 for responsiveness:
-- Desktop computers
-- Tablets
-- Mobile phones
-
-## 🎨 Features Breakdown
-
-### Weather Data Display
-```javascript
-// Vue data structure
-{
-  title: 'Weather App',
-  placeString: 'Vienna, Austria',
-  temperature: '22',
-  weatherStatus: 'Partly Cloudy',
-  imgUrl: 'path/to/icon.png',
-  temparray: [...], // 5-day temperatures
-  descrArray: [...], // Weather descriptions
-  imgSrcArray: [...] // Weather icons
-}
-```
-
-### Date Formatting
-- Day name display
-- Formatted dates for forecast
-- Time display with locale formatting
-- Multi-language support (German/English)
-
-## 📚 Learning Outcomes
-
-This project demonstrates:
-- Vue.js fundamentals and syntax
-- Reactive data binding
-- API integration with Vue
-- Component-based thinking
-- Template rendering
-- Bootstrap integration
-- Responsive web design
-
-## 🎓 Assignment Context
-
-Created as part of a web development course assignment, showcasing:
-- Vue.js framework understanding
-- Modern JavaScript
-- API consumption
-- Responsive design
-- Clean code organization
-
-## 🚀 Future Enhancements
-
-Potential improvements:
-- Location search functionality
-- Geolocation support
-- Unit conversion (°C/°F)
-- Hourly forecast view
-- Weather alerts
-- Favorite locations
-- Dark mode
-
-## 🌟 Why Vue.js?
-
-This project uses Vue.js because:
-- **Simple setup**: CDN-based, no build tools needed
-- **Reactive**: Automatic UI updates
-- **Declarative**: Easy-to-read templates
-- **Progressive**: Can be adopted incrementally
-- **Lightweight**: Fast and efficient
-
----
-
-**Built with Vue.js** 💚 | **Weather by OpenWeatherMap** 🌤️ | **Responsive with Bootstrap** 📱
+`npm test` covers config generation, the built files in `dist/`, and the logic in `script.js` with mocked browser APIs.
+The application tests run the script in a VM with stub `fetch` and geolocation, so they do not call the real APIs.
