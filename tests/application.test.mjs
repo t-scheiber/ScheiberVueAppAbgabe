@@ -5,9 +5,9 @@ import vm from 'node:vm';
 
 const source = fs.readFileSync(new URL('../script.js', import.meta.url), 'utf8');
 const tick = () => new Promise(resolve => setImmediate(resolve));
-function fixture({geo = 'delayed', malformed = false, reject = false} = {}) {
+function fixture({geo = 'delayed', malformed = false, reject = false, maps = 'loaded'} = {}) {
   let options, permission, timer, cancelled = false;
-  const requests = [], logs = [], timers = [];
+  const requests = [], logs = [], timers = [], scripts = [], lookups = [];
   const sandbox = {
     Vue: {createApp(value) { options = value; return {mount(selector) {assert.equal(selector, '#app');}}; }},
     window: {CONFIG: {OPENWEATHER_API_KEY: 'synthetic-weather-key', GOOGLE_MAPS_API_KEY: 'synthetic-google-key'}},
@@ -23,14 +23,32 @@ function fixture({geo = 'delayed', malformed = false, reject = false} = {}) {
     fetch(url) {
       requests.push(new URL(url));
       if (reject) return Promise.reject(Error(`network failure for ${url}`));
-      return Promise.resolve({ok: true, json: async () => malformed ? {} : ({dt: 2000000000, main: {temp: 21.3}, weather: [{description: 'clear', icon: '01d'}], list: [{main: {temp: 22.4}, weather: [{description: 'forecast', icon: '02d'}]}], results: [{formatted_address: 'Synthetic location'}]})});
+      return Promise.resolve({ok: true, json: async () => malformed ? {} : ({dt: 2000000000, main: {temp: 21.3}, weather: [{description: 'clear', icon: '01d'}], list: [{main: {temp: 22.4}, weather: [{description: 'forecast', icon: '02d'}]}]})});
+    },
+    // Stands in for the Maps JavaScript API: the page adds one script element,
+    // the stub then defines google.maps and calls the page's load callback.
+    document: {
+      createElement(tag) {assert.equal(tag, 'script'); return {};},
+      head: {appendChild(script) {
+        const url = new URL(script.src); scripts.push(url);
+        if (maps === 'blocked') {script.onerror(); return;}
+        sandbox.window.google = {maps: {importLibrary: async (name) => {
+          assert.equal(name, 'geocoding');
+          return {Geocoder: class {geocode(request) {
+            lookups.push(request);
+            if (reject) return Promise.reject(Error('REQUEST_DENIED'));
+            return Promise.resolve(malformed ? {} : {results: [{formatted_address: 'Synthetic location'}]});
+          }}};
+        }}};
+        sandbox.window[url.searchParams.get('callback')]();
+      }},
     },
   };
   const context = vm.createContext(sandbox);
   vm.runInContext(source, context, {timeout: 1000});
   const state = Object.assign(options.data(), options.methods);
   return {
-    state, requests, logs, context, timers,
+    state, requests, logs, context, timers, scripts, lookups,
     start: () => options.beforeMount.call(state),
     grant: (latitude = 47.2, longitude = 11.4) => permission.success({coords: {latitude, longitude}}),
     deny: () => permission.failure({code: 1}),
@@ -54,6 +72,21 @@ test('delayed permission resolves before weather and forecast use the granted co
   assertLocation(f, 47.2, 11.4); assert.equal(f.state.temperature, 21);
   assert.equal(f.state.placeString, 'Synthetic location');
   assert.equal(f.state.temparray[1], 22);
+});
+test('the place name comes from the Maps JavaScript API geocoder with the configured key', async () => {
+  const f = fixture(); const pending = f.start(); f.grant(); await pending; await tick();
+  assert.equal(f.scripts.length, 1);
+  const url = f.scripts[0];
+  assert.equal(url.origin + url.pathname, 'https://maps.googleapis.com/maps/api/js');
+  assert.equal(url.searchParams.get('key'), 'synthetic-google-key');
+  assert.equal(url.searchParams.get('loading'), 'async');
+  assert.deepEqual(JSON.parse(JSON.stringify(f.lookups)), [{location: {lat: 47.2, lng: 11.4}}]);
+  assert.equal(f.requests.every(request => request.hostname === 'api.openweathermap.org'), true);
+});
+test('a blocked Maps script keeps the placeholder place name and the weather still loads', async () => {
+  const f = fixture({geo: 'unsupported', maps: 'blocked'}); await f.start(); await tick();
+  assert.equal(f.state.placeString, ''); assert.equal(f.lookups.length, 0);
+  assertLocation(f, 48.208174, 16.373819); assert.equal(f.state.temperature, 21);
 });
 for (const geo of ['denied', 'unsupported', 'throws']) {
   test(`${geo} geolocation uses the Vienna fallback`, async () => {
